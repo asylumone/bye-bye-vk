@@ -206,6 +206,20 @@ def clean_friends(blacklist=False):
             errors += 1
         time.sleep(1)
     print('\nOK%s'%(' (%s errors)'%errors if errors else ''))
+def clean_followers():
+    succ, resp = vk.call('users.getFollowers', count=1000, fields='domain')
+    if not succ:
+        return print('Error: {error_code}: {error_msg}'.format(**resp))
+    followers = resp['items']
+    with open('subs.txt', 'w') as f: f.write('\n'.join('vk.com/{domain} {first_name} {last_name}'.format(**i) for i in followers))
+    errors = 0
+    for i, sub in enumerate(followers):
+        progressbar('Cleaning followers...', i + 1, len(followers))
+        succ, resp = vk.call('account.ban', owner_id=sub['id'])
+        if not succ:
+            errors += 1
+        time.sleep(.5)
+    print('\nOK%s'%(' (%s errors)'%errors if errors else ''))
 
 DIALOGS_CACHE = {}
 get_peer_id = lambda m: m['chat_id'] + 2000000000 if 'chat_id' in m else m['user_id']
@@ -245,10 +259,11 @@ while True:
         'Clean photos',
         'Clean documents',
         'Clean dialogs',
+        'Clean followers',
         'Clean friends',
         'Unsubsribe from communities',
-        'Quit',
-        'Clean ALL'], 'Select action:')
+        'Clean ALL',
+        'Quit'], 'Select action:')
     if action == 'Quit':
         print('Bye-Bye')
         quit()
@@ -258,6 +273,8 @@ while True:
         clean_photos()
     elif action == 'Clean documents':
         clean_docs()
+    elif action == 'Clean followers':
+        clean_followers()
     elif action == 'Clean friends':
         clean_friends(select(['Blacklist', 'No'], 'Do you want to blacklist old friends?') == 'Blacklist')
     elif action == 'Clean dialogs':
@@ -287,6 +304,7 @@ while True:
                 clean_groups()
                 clean_friends()
                 clean_wall()
+                clean_followers()
                 if select(['Clean', 'Stop'], 'Here you can stop cleaning or clean dialogs.') == 'Stop':
                     print('Dialogs not cleaned')
                     break
